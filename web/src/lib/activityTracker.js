@@ -1,4 +1,4 @@
-import { postActivity } from 'src/services/api'
+import { postActivity, postDemoActivity } from 'src/services/api'
 import { useAuth } from 'src/services/auth'
 
 const INPUT_IDLE_MS = 5000
@@ -106,14 +106,20 @@ function snapshotAndReset() {
 async function flushNavigate(path, metrics) {
   const auth = useAuth()
   if (!auth.isAuthenticated.value) return
+  const payload = {
+    type: 'navigate',
+    path,
+    dwellMs: metrics.dwellMs,
+    visibleMs: metrics.visibleMs,
+    engagedMs: metrics.engagedMs,
+    demo: !!auth.isDemo?.value,
+  }
   try {
-    await postActivity({
-      type: 'navigate',
-      path,
-      dwellMs: metrics.dwellMs,
-      visibleMs: metrics.visibleMs,
-      engagedMs: metrics.engagedMs,
-    })
+    if (auth.isDemo?.value) {
+      await postDemoActivity(payload)
+    } else {
+      await postActivity(payload)
+    }
   } catch {
     // Tracking must never break navigation.
   }

@@ -22,7 +22,12 @@
       </q-toolbar>
       <div class="warning-banner text-center q-py-xs text-caption">
         <q-icon name="science" size="xs" class="q-mb-xs" />
-        LAB / TEST / DEV ONLY — mock-me · MockUp canvases (ACM Multi-Cluster first)
+        <template v-if="auth.isDemo.value">
+          Demo / fake mode — not a live system · no live node deploys
+        </template>
+        <template v-else>
+          LAB / TEST / DEV ONLY — mock-me · MockUp canvases (ACM Multi-Cluster first)
+        </template>
         <q-icon name="science" size="xs" class="q-mb-xs" />
       </div>
     </q-header>

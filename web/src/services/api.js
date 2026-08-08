@@ -183,6 +183,43 @@ export async function postActivity(payload) {
   return data
 }
 
+export async function enterDemo() {
+  const { data } = await api.post('/demo/enter')
+  return data
+}
+
+export async function exitDemo() {
+  const { data } = await api.post('/demo/exit')
+  return data
+}
+
+export async function getDemoMe() {
+  const { data, status } = await api.get('/demo/me', {
+    validateStatus: (s) => (s >= 200 && s < 300) || s === 401,
+  })
+  if (status === 401) {
+    const err = new Error('unauthorized')
+    err.response = { status: 401, data }
+    throw err
+  }
+  return data
+}
+
+export async function simulateDemoDeploy() {
+  const { data } = await api.post('/demo/simulate')
+  return data
+}
+
+export async function getDemoDeployStatus() {
+  const { data } = await api.get('/demo/status')
+  return data
+}
+
+export async function postDemoActivity(payload) {
+  const { data } = await api.post('/demo/activity', payload)
+  return data
+}
+
 export async function listActivity({ limit = 200 } = {}) {
   const { data } = await api.get('/activity', { params: { limit } })
   return data

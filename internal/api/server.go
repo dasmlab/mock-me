@@ -17,6 +17,7 @@ import (
 	"github.com/dasmlab/mock-me/internal/activity"
 	"github.com/dasmlab/mock-me/internal/auth"
 	"github.com/dasmlab/mock-me/internal/cheapcloud"
+	"github.com/dasmlab/mock-me/internal/demo"
 	"github.com/dasmlab/mock-me/internal/deploy"
 	"github.com/dasmlab/mock-me/internal/inventory"
 	"github.com/dasmlab/mock-me/internal/mockup"
@@ -88,8 +89,19 @@ func (s *Server) routes() chi.Router {
 		r.Get("/auth/me", s.auth.Me)
 		r.Get("/auth/keepalive", s.auth.KeepAlive)
 
+		// Public demo facade — no Keycloak; never mutates live deploy paths.
+		r.Route("/demo", func(r chi.Router) {
+			r.Post("/enter", demo.Enter)
+			r.Post("/exit", demo.Exit)
+			r.Get("/me", demo.Me)
+			r.Post("/simulate", demo.Simulate)
+			r.Get("/status", demo.Status)
+			r.Post("/activity", s.postDemoActivity)
+		})
+
 		r.Group(func(r chi.Router) {
 			r.Use(s.auth.AdminMiddleware)
+			r.Use(demo.DenyMutate(s.auth.IsAdmin))
 			r.Get("/profiles", s.profiles)
 			r.Get("/catalog", s.catalog)
 
@@ -857,6 +869,46 @@ func (s *Server) postActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"ok": true})
+}
+
+func (s *Server) postDemoActivity(w http.ResponseWriter, r *http.Request) {
+	if !demo.IsDemo(r) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "demo session required"})
+		return
+	}
+	if s.activity == nil {
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "skipped": true})
+		return
+	}
+	var body struct {
+		Type      string `json:"type"`
+		Path      string `json:"path"`
+		DwellMs   int64  `json:"dwellMs"`
+		VisibleMs int64  `json:"visibleMs"`
+		EngagedMs int64  `json:"engagedMs"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	typ := strings.TrimSpace(body.Type)
+	if typ == "" {
+		typ = activity.TypeNavigate
+	}
+	ev := activity.Event{
+		Type:      typ,
+		User:      "demo-visitor",
+		Path:      strings.TrimSpace(body.Path),
+		DwellMs:   body.DwellMs,
+		VisibleMs: body.VisibleMs,
+		EngagedMs: body.EngagedMs,
+		Demo:      true,
+	}
+	if err := s.activity.Append(ev); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "demo": true})
 }
 
 func (s *Server) listActivity(w http.ResponseWriter, r *http.Request) {

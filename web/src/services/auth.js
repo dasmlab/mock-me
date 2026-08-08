@@ -1,14 +1,16 @@
 import { computed, ref } from 'vue'
-import { getAuthConfig, getMe, loginUrl, logoutUrl } from 'src/services/api'
+import { getAuthConfig, getDemoMe, getMe, loginUrl, logoutUrl } from 'src/services/api'
 
 const user = ref(null)
 const authEnabled = ref(false)
 const ready = ref(false)
 const loading = ref(false)
+const isDemo = ref(false)
 
 export function useAuth() {
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => {
+    if (isDemo.value) return false
     if (!authEnabled.value) return true
     return !!user.value?.is_admin
   })
@@ -16,8 +18,8 @@ export function useAuth() {
     if (!user.value) return ''
     return user.value.name || user.value.preferred_username || user.value.email || 'User'
   })
-  // Activity log UI is dasm-only (matches ACTIVITY_VIEWERS / preferred_username).
   const canViewActivity = computed(() => {
+    if (isDemo.value) return false
     if (!authEnabled.value) return true
     return user.value?.preferred_username === 'dasm'
   })
@@ -31,19 +33,32 @@ export function useAuth() {
       if (cfg.enabled) {
         try {
           user.value = await getMe()
+          isDemo.value = false
         } catch {
-          user.value = null
+          try {
+            user.value = await getDemoMe()
+            isDemo.value = !!user.value?.demo
+          } catch {
+            user.value = null
+            isDemo.value = false
+          }
         }
       } else {
         user.value = { preferred_username: 'local', name: 'Local Dev', is_admin: true }
+        isDemo.value = false
       }
     } catch {
       authEnabled.value = false
       user.value = { preferred_username: 'local', name: 'Local Dev', is_admin: true }
+      isDemo.value = false
     } finally {
       ready.value = true
       loading.value = false
     }
+  }
+
+  function resetReady() {
+    ready.value = false
   }
 
   function login() {
@@ -61,9 +76,11 @@ export function useAuth() {
     loading,
     isAuthenticated,
     isAdmin,
+    isDemo,
     canViewActivity,
     displayName,
     init,
+    resetReady,
     login,
     logout,
   }

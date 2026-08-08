@@ -32,6 +32,7 @@ type Event struct {
 	DwellMs   int64     `json:"dwellMs,omitempty"`
 	VisibleMs int64     `json:"visibleMs,omitempty"`
 	EngagedMs int64     `json:"engagedMs,omitempty"`
+	Demo      bool      `json:"demo,omitempty"`
 }
 
 // Store is an append-only JSONL file under dataDir/activity/events.jsonl.
