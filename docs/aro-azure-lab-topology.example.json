@@ -1,0 +1,108 @@
+{
+  "cost_me_targets": [
+    {
+      "capability": "aro-minimal",
+      "provider": "azure",
+      "count": 2,
+      "spot": true,
+      "region_hint": "eastus",
+      "sku_hint": "Standard_D4s_v3"
+    }
+  ],
+  "orphans": [
+    {
+      "id": "aro-vnet",
+      "kind": "cloud-vnet",
+      "label": "aro-vnet",
+      "notes": "cidr=10.100.0.0/15",
+      "x": 60,
+      "y": 40
+    },
+    {
+      "id": "subnet-master",
+      "kind": "cloud-subnet",
+      "label": "master",
+      "notes": "cidr=10.100.76.0/24 role=master",
+      "x": 60,
+      "y": 140
+    },
+    {
+      "id": "subnet-worker",
+      "kind": "cloud-subnet",
+      "label": "worker",
+      "notes": "cidr=10.100.70.0/23 role=worker",
+      "x": 60,
+      "y": 220
+    },
+    {
+      "id": "aro-cluster",
+      "kind": "cloud-aro-cluster",
+      "label": "ARO cluster",
+      "notes": "api=Public ingress=Public version=latest region=eastus",
+      "x": 320,
+      "y": 40
+    },
+    {
+      "id": "master-pool",
+      "kind": "cloud-aro-master",
+      "label": "3× masters",
+      "notes": "sku=Standard_D8s_v3 count=3 spot=false",
+      "x": 320,
+      "y": 140
+    },
+    {
+      "id": "worker-pool",
+      "kind": "cloud-aro-worker",
+      "label": "3× workers",
+      "notes": "sku=Standard_D4s_v3 count=3 spot=false disk=128",
+      "x": 320,
+      "y": 220
+    },
+    {
+      "id": "spot-pool",
+      "kind": "cloud-aro-spot-worker",
+      "label": "2× Spot workers",
+      "notes": "sku=Standard_D4s_v3 count=2 spot=true taint=spot=true:NoExecute",
+      "x": 560,
+      "y": 220
+    }
+  ],
+  "product_id": "mock-me-61fb90f6-63d0-48c7-bd73-067fca5a01fd",
+  "provider": "azure",
+  "relations": [
+    {
+      "from": "cloud-subnet",
+      "rel": "in",
+      "to": "cloud-vnet",
+      "cardinality": "1..*"
+    },
+    {
+      "from": "cloud-aro-master",
+      "rel": "in",
+      "to": "cloud-subnet",
+      "cardinality": "3..3",
+      "notes": "never Spot"
+    },
+    {
+      "from": "cloud-aro-worker",
+      "rel": "in",
+      "to": "cloud-subnet",
+      "cardinality": "3..*",
+      "notes": "≥3 non-Spot"
+    },
+    {
+      "from": "cloud-aro-spot-worker",
+      "rel": "in",
+      "to": "cloud-subnet",
+      "cardinality": "0..*",
+      "notes": "MachineSet spotVMOptions"
+    },
+    {
+      "from": "cloud-aro-cluster",
+      "rel": "uses",
+      "to": "cloud-vnet",
+      "cardinality": "1..1"
+    }
+  ],
+  "style": "aro-azure-lab"
+}
