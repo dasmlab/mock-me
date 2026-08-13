@@ -72,6 +72,39 @@ func TestCreateSetsGenreStyle(t *testing.T) {
 	}
 }
 
+func TestCreateAROAzureLab(t *testing.T) {
+	dir := t.TempDir()
+	s, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := s.Create(CreateReq{
+		Name: "aro-lab", Genre: GenreInfrastructure, Style: StyleAROAzureLab,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Spec.Style != StyleAROAzureLab || m.Spec.Provider != "azure" {
+		t.Fatalf("aro: style=%s provider=%s", m.Spec.Style, m.Spec.Provider)
+	}
+	if m.Spec.Canvas == nil || len(m.Spec.Canvas.Orphans) < 6 {
+		t.Fatalf("want ARO canvas orphans, got %+v", m.Spec.Canvas)
+	}
+	kinds := map[string]bool{}
+	for _, o := range m.Spec.Canvas.Orphans {
+		kinds[o.Kind] = true
+	}
+	for _, k := range []string{"cloud-vnet", "cloud-aro-cluster", "cloud-aro-master", "cloud-aro-worker", "cloud-aro-spot-worker"} {
+		if !kinds[k] {
+			t.Fatalf("missing orphan kind %s", k)
+		}
+	}
+	res := ValidateTopology(m)
+	if !res.OK {
+		t.Fatalf("aro validate: %+v", res)
+	}
+}
+
 func TestCreateCloudCostModel(t *testing.T) {
 	dir := t.TempDir()
 	s, err := NewStore(dir)

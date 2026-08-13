@@ -316,8 +316,70 @@ func seedMockUp(style, id, name, domain, provider, notes, now string) *MockUp {
 		return defaultSingleSNOMockUp(id, name, domain, provider, notes, now)
 	case StyleCloudCostModel:
 		return defaultCloudCostModel(id, name, domain, provider, notes, now)
+	case StyleAROAzureLab:
+		return defaultAROAzureLab(id, name, domain, provider, notes, now)
 	default:
 		return defaultMockUp(id, name, domain, provider, notes, now)
+	}
+}
+
+func defaultAROAzureLab(id, name, domain, provider, notes, now string) *MockUp {
+	if provider == "" || provider == "libvirt" {
+		provider = "azure"
+	}
+	if notes == "" {
+		notes = "Cheapest viable ARO: 3×D8s_v3 masters + 3×D4s_v3 workers + 2 Spot workers. Deploy via ARM/az aro; Spot via MachineSet."
+	}
+	return &MockUp{
+		APIVersion: "mock-me.dasmlab.org/v1alpha1",
+		Kind:       "MockUp",
+		Metadata: Metadata{
+			ID: id, Name: name, CreatedAt: now, UpdatedAt: now, Notes: notes,
+		},
+		Spec: Spec{
+			Genre:      GenreInfrastructure,
+			Style:      StyleAROAzureLab,
+			BaseDomain: domain,
+			Provider:   provider,
+			CanvasMode: "freeform",
+			Canvas: &CanvasSpec{
+				ShowRelations: true,
+				OmitHost:      true,
+				OmitGateway:   true,
+				OmitHub:       true,
+				OmitACM:       true,
+				Orphans: []CanvasNode{
+					{ID: "aro-vnet", Kind: "cloud-vnet", Label: "aro-vnet", Notes: "cidr=10.100.0.0/15", X: 60, Y: 40},
+					{ID: "subnet-master", Kind: "cloud-subnet", Label: "master", Notes: "cidr=10.100.76.0/24 role=master", X: 60, Y: 140},
+					{ID: "subnet-worker", Kind: "cloud-subnet", Label: "worker", Notes: "cidr=10.100.70.0/23 role=worker", X: 60, Y: 220},
+					{ID: "aro-cluster", Kind: "cloud-aro-cluster", Label: "ARO cluster", Notes: "api=Public ingress=Public version=latest region=eastus", X: 320, Y: 40},
+					{ID: "master-pool", Kind: "cloud-aro-master", Label: "3× masters", Notes: "sku=Standard_D8s_v3 count=3 spot=false", X: 320, Y: 140},
+					{ID: "worker-pool", Kind: "cloud-aro-worker", Label: "3× workers", Notes: "sku=Standard_D4s_v3 count=3 spot=false disk=128", X: 320, Y: 220},
+					{ID: "spot-pool", Kind: "cloud-aro-spot-worker", Label: "2× Spot workers", Notes: "sku=Standard_D4s_v3 count=2 spot=true taint=spot=true:NoExecute", X: 560, Y: 220},
+				},
+			},
+			Network: NetworkSpec{
+				MachineCIDR: "10.100.0.0/15",
+				Gateway:     "10.100.0.1",
+			},
+			InfraHost: InfraHostNode{ID: "infra-host", Label: "unused", Hostname: "n/a"},
+			Gateway:   GatewayNode{ID: "gateway", Label: "unused"},
+			Hub:       HubNode{ID: "hub", Label: "unused"},
+			ACM:       ACMNode{Enabled: false},
+			Gaps: GapParams{
+				PullSecretFile: "pull-secret.txt",
+			},
+		},
+		Status: Status{Phase: PhaseCreated, CheapcloudProductID: "mock-me-" + id},
+		Layout: Layout{Nodes: map[string]NodePos{
+			"aro-vnet":       {X: 60, Y: 40},
+			"subnet-master":  {X: 60, Y: 140},
+			"subnet-worker":  {X: 60, Y: 220},
+			"aro-cluster":    {X: 320, Y: 40},
+			"master-pool":    {X: 320, Y: 140},
+			"worker-pool":    {X: 320, Y: 220},
+			"spot-pool":      {X: 560, Y: 220},
+		}},
 	}
 }
 

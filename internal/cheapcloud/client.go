@@ -178,6 +178,8 @@ func TargetsFromMockUp(m *mockup.MockUp) []Target {
 	}
 	style := m.Spec.Style
 	switch style {
+	case mockup.StyleAROAzureLab:
+		return targetsFromAROLab(m)
 	case mockup.StyleSingleSNOOCP:
 		return []Target{{
 			Capability: "ocp-sno-slim", Provider: "azure", Count: 1, Spot: &spot,
@@ -203,6 +205,68 @@ func TargetsFromMockUp(m *mockup.MockUp) []Target {
 			Capability: "ocp-sno-slim", Provider: "azure", Count: 1, Spot: &spot,
 		}}
 	}
+}
+
+func targetsFromAROLab(m *mockup.MockUp) []Target {
+	// Prefer canvas orphans when present (baseline + optional Spot).
+	spotCount := 0
+	workerSKU := "Standard_D4s_v3"
+	region := "eastus"
+	if m.Spec.Canvas != nil {
+		for _, n := range m.Spec.Canvas.Orphans {
+			switch n.Kind {
+			case "cloud-aro-spot-worker":
+				spotCount += noteCount(n.Notes, 2)
+				if s := noteKV(n.Notes, "sku"); s != "" {
+					workerSKU = s
+				}
+			case "cloud-aro-worker":
+				if s := noteKV(n.Notes, "sku"); s != "" {
+					workerSKU = s
+				}
+			case "cloud-aro-cluster":
+				if r := noteKV(n.Notes, "region"); r != "" {
+					region = r
+				}
+			}
+		}
+	}
+	wantSpot := spotCount > 0
+	t := Target{
+		Capability: "aro-minimal",
+		Provider:   "azure",
+		RegionHint: region,
+		SKUHint:    workerSKU,
+		Spot:       &wantSpot,
+	}
+	if wantSpot {
+		t.Count = spotCount
+	}
+	return []Target{t}
+}
+
+func noteCount(notes string, def int) int {
+	if v := noteKV(notes, "count"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			return n
+		}
+	}
+	return def
+}
+
+func noteKV(notes, key string) string {
+	keyPref := strings.ToLower(key) + "="
+	for _, part := range strings.Fields(notes) {
+		if strings.HasPrefix(strings.ToLower(part), keyPref) {
+			// preserve original value casing (Azure SKUs)
+			idx := strings.Index(strings.ToLower(part), "=")
+			if idx >= 0 && idx+1 < len(part) {
+				return part[idx+1:]
+			}
+		}
+	}
+	return ""
 }
 
 func targetsFromCloudModel(m *mockup.MockUp) []Target {

@@ -18,6 +18,7 @@ const (
 	StyleWebFullStack         = "web-full-stack"
 	StyleInfraNodeNetwork     = "infra-node-network-payload"
 	StyleCloudCostModel       = "cloud-cost-model" // Design-bench port: multi-cloud price+track palette
+	StyleAROAzureLab          = "aro-azure-lab"    // cheapest viable ARO (+ optional Spot MachineSet)
 	StyleSelfServePersonalCDN = "self-serve-cloud-personal-cdn"
 	StyleSurfingCdnR2         = "surfing-cdn-r2" // golden implementation example of Self-Serve Personal CDN
 )
@@ -170,6 +171,25 @@ func Catalog() CatalogResponse {
 			},
 		},
 		{
+			ID: StyleAROAzureLab, Genre: GenreInfrastructure,
+			Label:       "ARO Azure lab (cheapest)",
+			Description: "Azure Red Hat OpenShift floor: RG → VNet/master+worker subnets → 3 masters (D8s_v3) + 3 on-demand workers (D4s_v3) + optional Spot MachineSet. Cost me via cheapcloud; Spot reclaim → SKU fallback.",
+			Available:   true,
+			ObjectTypes: []string{
+				"cloud-vnet", "cloud-subnet", "cloud-aro-cluster",
+				"cloud-aro-master", "cloud-aro-worker", "cloud-aro-spot-worker", "cloud-nsg",
+			},
+			Views:       []string{"all", "network", "compute", "cluster"},
+			DefaultSeed: "ARO ARM defaults + 2 Spot workers (tainted) for interruptible play",
+			Relations: []RelationRule{
+				{From: "cloud-subnet", Rel: "in", To: "cloud-vnet", Cardinality: "1..*"},
+				{From: "cloud-aro-master", Rel: "in", To: "cloud-subnet", Cardinality: "3..3", Notes: "never Spot"},
+				{From: "cloud-aro-worker", Rel: "in", To: "cloud-subnet", Cardinality: "3..*", Notes: "≥3 non-Spot"},
+				{From: "cloud-aro-spot-worker", Rel: "in", To: "cloud-subnet", Cardinality: "0..*", Notes: "MachineSet spotVMOptions"},
+				{From: "cloud-aro-cluster", Rel: "uses", To: "cloud-vnet", Cardinality: "1..1"},
+			},
+		},
+		{
 			ID: StyleSelfServePersonalCDN, Genre: GenreContentManagement,
 			Label:       "Self-Serve Cloud Personal CDN",
 			Description: "Customer-held keys + pass-through cloud bill (~$1 service for index/site-CDN/migrate). Portal → OAuth2/SSO to CF/Azure/GCP → BYO bucket backend → Edge CDN → catalog/index (cdn-mgr). Surfing is the golden live example. cheapcloud profiles free-tier burn; mock-me templates this for cdn-mgr later.",
@@ -238,8 +258,8 @@ func Catalog() CatalogResponse {
 		},
 		{
 			ID: GenreInfrastructure, Label: "Infrastructure",
-			Description: "Hosts, networks, payloads, and multi-cloud cost models (Design bench → Model).",
-			Styles:      []string{StyleCloudCostModel, StyleInfraNodeNetwork},
+			Description: "Hosts, networks, payloads, multi-cloud cost models, and cheapest ARO lab footprints.",
+			Styles:      []string{StyleCloudCostModel, StyleAROAzureLab, StyleInfraNodeNetwork},
 		},
 		{
 			ID: GenreContentManagement, Label: "Content Management",
